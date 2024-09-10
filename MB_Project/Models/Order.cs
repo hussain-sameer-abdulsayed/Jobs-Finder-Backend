@@ -22,8 +22,8 @@ namespace MB_Project.Models
         public string? UserId { get; set; }
         [ForeignKey("UserId")]
         public User? User { get; set; }//from this you get Orders
-        public int? PostId { get; set; }
-        [ForeignKey("PostId")]
+        public int? WorkId { get; set; }
+        [ForeignKey("WorkId")]
         public Post? Post { get; set; }
         public float? TotalPrice { get; set; }
         //public OrderrrrStatus? Status { get; set; }

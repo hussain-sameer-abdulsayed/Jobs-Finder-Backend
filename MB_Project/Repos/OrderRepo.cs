@@ -25,7 +25,7 @@ namespace MB_Project.Repos
                         r => new Order
                         {
                             Id = r.Id,
-                            PostId = r.PostId,
+                            WorkId = r.WorkId,
                             UserId = r.UserId,
                             TotalPrice = r.TotalPrice,
                             OrderStatus = r.OrderStatus,
@@ -59,7 +59,7 @@ namespace MB_Project.Repos
                         r => new Order
                         {
                             Id = r.Id,
-                            PostId = r.PostId,
+                            WorkId = r.WorkId,
                             UserId = r.UserId,
                             TotalPrice = r.TotalPrice,
                             OrderStatus = r.OrderStatus,
@@ -67,7 +67,7 @@ namespace MB_Project.Repos
                             PostFeatures = r.PostFeatures.Select(f => new PostFeature
                             {
                                 Id = f.Id,
-                                PostId = f.PostId,
+                                WorkId = f.WorkId,
                                 Title = f.Title,
                                 Price = f.Price
                             }).ToList()
@@ -86,13 +86,13 @@ namespace MB_Project.Repos
             try
             {
                 var orderList = await _context.Orders
-                    .Where(x => x.PostId == PostId)
+                    .Where(x => x.WorkId == PostId)
                     .Select
                     (
                         r => new Order
                         {
                             Id = r.Id,
-                            PostId = r.PostId,
+                            WorkId = r.WorkId,
                             UserId = r.UserId,
                             TotalPrice = r.TotalPrice,
                             OrderStatus = r.OrderStatus,
@@ -126,7 +126,7 @@ namespace MB_Project.Repos
                         r => new Order
                         {
                             Id = r.Id,
-                            PostId = r.PostId,
+                            WorkId = r.WorkId,
                             UserId = r.UserId,
                             TotalPrice = r.TotalPrice,
                             OrderStatus = r.OrderStatus,
@@ -160,11 +160,13 @@ namespace MB_Project.Repos
                     return Enumerable.Empty<Order>();
                 }
                 */
+
                 var orders = await _context.Orders
                             .Where(order => _context.Posts
-                            .Any(post => post.Id == order.PostId && post.FreelancerId == sellerId))
+                            .Any(post => post.Id == order.WorkId && post.FreelancerId == sellerId))
                             .ToListAsync();
                 return orders;
+
             }
             catch
             {
@@ -193,8 +195,8 @@ namespace MB_Project.Repos
                 {
                     return false;
                 }
-                obj.PostId = order.PostId;
-                var pstFet = await _context.PostFeatures.Where(x => x.PostId == obj.PostId).ToListAsync();
+                obj.WorkId = order.WorkId;
+                var pstFet = await _context.PostFeatures.Where(x => x.WorkId == obj.WorkId).ToListAsync();
                 obj.PostFeatures = pstFet;
                 obj.TotalPrice = 1000; // edit this for example
                 await _context.SaveChangesAsync();

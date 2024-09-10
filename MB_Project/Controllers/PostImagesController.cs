@@ -1,7 +1,9 @@
 ﻿using MB_Project.IRepos;
 using MB_Project.Models;
+using MB_Project.Models.DTOS;
 using MB_Project.Models.DTOS.PostImageDto;
 using MB_Project.Repos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +25,7 @@ namespace MB_Project.Controllers
         }
 
 
+        [AllowAnonymous]
         [HttpGet("work/{workId}")]
         public async Task<IActionResult> GetPostImages(int workId)
         {
@@ -49,19 +52,22 @@ namespace MB_Project.Controllers
                 return BadRequest();
             }
         }
+
+
+        //[Authorize(Roles ="ADMIN , SELLER")]
         [HttpPost()]
-        public async Task<IActionResult> CreatePostImages(CreatePostImageDto postImageDto)
+        public async Task<IActionResult> CreatePostImages([FromForm]AddPostImages addPostImages)
         {
             try
             {
                 _transactionRepo.BeginTransaction();
                 var images = new List<PostImage>();
-                foreach (var item in postImageDto.secondaryImages)
+                foreach (var item in addPostImages.SecondaryImages)
                 {
                     var SecndaryUniqueFileName = await _postImageRepo.SecndarySaveUploadedFile(item);
                     var img = new PostImage()
                     {
-                        PostId = postImageDto.workId,
+                        WorkId = addPostImages.WorkId,
                         ImageUrl = SecndaryUniqueFileName
                     };
                     var chkimg = await _postImageRepo.Create(img);
@@ -82,5 +88,31 @@ namespace MB_Project.Controllers
             }
         }
 
+
+        [HttpDelete("{workId}")]
+        public async Task<IActionResult> DeleteWorkImage(int workId,[FromBody]DeletePostImage data)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                _transactionRepo.BeginTransaction();
+                var chk = await _postImageRepo.DeletePostImage(workId, data.ImageUrl);
+                if (!chk)
+                {
+                    _transactionRepo.RollBackTransaction();
+                    return BadRequest();
+                }
+                _transactionRepo.CommitTransaction();
+                return Ok("image deleted");
+            }
+            catch
+            {
+                _transactionRepo.RollBackTransaction();
+                return BadRequest();
+            }
+        }
     }
 }

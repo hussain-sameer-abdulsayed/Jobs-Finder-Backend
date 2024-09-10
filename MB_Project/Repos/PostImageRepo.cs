@@ -88,11 +88,25 @@ namespace MB_Project.Repos
         }
 
 
-
-
-        public Task<bool> DeletePostImages(int postId)
+        public async Task<bool> DeletePostImage(int postId,string imageUrl)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var img = imageUrl.Substring(50);
+                var obj = await _context.PostsImages.Where(p => p.WorkId == postId && p.ImageUrl == img).FirstOrDefaultAsync();
+                if (obj == null) 
+                {
+                    return false;
+                }
+                _context.Attach(obj);
+                _context.PostsImages.Remove(obj);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         public Task<IEnumerable<PostImage>> GetPostImages(int postId)
         {
@@ -143,7 +157,7 @@ namespace MB_Project.Repos
             try
             {
                 var SecondaryImagesUrl = await _context.PostsImages
-                    .Where(x => x.PostId == PostId)
+                    .Where(x => x.WorkId == PostId)
                     .Select(x => x.ImageUrl)
                     .ToListAsync();
                 /*

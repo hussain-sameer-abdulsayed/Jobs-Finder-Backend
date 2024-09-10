@@ -65,15 +65,12 @@ namespace MB_Project.Repos
                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                 // Save the file to the file system
-                //using (var fileStream = new FileStream(filePath, FileMode.Create))
-                //{
-                //    await file.CopyToAsync(fileStream);
-                //}
-
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(fileStream);
+                }
+                /*
                 int maxWidth = 200, maxHeight = 200;
-
-
-
                 // Resize the image
                 using (var inputStream = file.OpenReadStream())
                 {
@@ -101,7 +98,7 @@ namespace MB_Project.Repos
                         }
                     }
                 }
-
+                */
 
                 // Return the unique file name
                 return uniqueFileName;
@@ -332,6 +329,7 @@ namespace MB_Project.Repos
                 var MainImage = await GetPostMainImage(uniqueFileName);
                 var SecondaryImagesUniqueFileNames = await GetPostSecondaryImagesUniqueFileNames(workId);
                 var SecondaryImages = await GetPostSecondaryImages(SecondaryImagesUniqueFileNames);
+                
 
                 var post = await _context.Posts
                     .Where(x => x.Id == workId)
@@ -354,7 +352,7 @@ namespace MB_Project.Repos
                     Reviews = p.Reviews.Select(c => new Review
                     {
                         Id = c.Id,
-                        PostId = c.PostId,
+                        WorkId = c.WorkId,
                         UserId = c.UserId,
                         Content = c.Content,
                         Rating = c.Rating
@@ -370,7 +368,7 @@ namespace MB_Project.Repos
                     PostFeatures = p.PostFeatures.Select(c => new PostFeature
                     {
                         Id = c.Id,
-                        PostId = c.PostId,
+                        WorkId = c.WorkId,
                         Title = c.Title,
                         Price = c.Price
                     }).ToList(),
@@ -435,6 +433,10 @@ namespace MB_Project.Repos
                         */
                     })
             .ToListAsync(); ;
+                if (posts.Count == 0)
+                {
+                    return Enumerable.Empty<Post>();
+                }
                 foreach (var post in posts)
                 {
                     var uniqueFileName = await GetUniqueFileNameForPostMainImage(post.Id);
@@ -448,7 +450,7 @@ namespace MB_Project.Repos
             }
             catch 
             { 
-                return Enumerable.Empty<Post>(); 
+                return Enumerable.Empty<Post>();
             }
 
         }
@@ -575,7 +577,7 @@ namespace MB_Project.Repos
             }
             var postsIds = await _context.PostCategories
                                          .Where(x=>x.CategoryId == CategoryId)
-                                         .Select(x=>x.PostId)
+                                         .Select(x=>x.WorkId)
                                          .ToListAsync();
             var posts = new List<Post>();
             foreach (var postid in postsIds)
@@ -668,7 +670,7 @@ namespace MB_Project.Repos
         public async Task<List<PostImage>> GetPostImagesObj(int postId)
         {
             var post = await _context.PostsImages
-                                         .Where(x => x.PostId == postId)
+                                         .Where(x => x.WorkId == postId)
                                          .ToListAsync();
             
             const string _baseImageUrl = "https://localhost:7181/images/postSecondaryImages/";
@@ -731,7 +733,7 @@ namespace MB_Project.Repos
             try
             {
                 var SecondaryImagesUrl = await _context.PostsImages
-                    .Where(x => x.PostId == PostId)
+                    .Where(x => x.WorkId == PostId)
                     .Select(x => x.ImageUrl)
                     .ToListAsync();
                 /*
@@ -762,7 +764,7 @@ namespace MB_Project.Repos
             {
                 if (uniqueFileName.Count() == 0)
                 {
-                    return null;
+                    return Task.FromResult(new List<string>());
                 }
                 var imageUrl = new List<string>();
                 const string _baseImageUrl = "https://localhost:7181/images/postSecondaryImages/";
@@ -815,6 +817,11 @@ namespace MB_Project.Repos
             {
                 return false;
             }
+        }
+
+        public async Task<double> GetPostRating(int postId)
+        {
+            return 5;
         }
     }
 }

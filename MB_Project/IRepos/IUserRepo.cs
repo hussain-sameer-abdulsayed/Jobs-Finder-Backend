@@ -1,4 +1,5 @@
 ﻿using MB_Project.Models;
+using MB_Project.Models.DTOS;
 using MB_Project.Models.DTOS.UserDto;
 using Microsoft.AspNetCore.Identity;
 
@@ -19,14 +20,16 @@ namespace MB_Project.IRepos
         //Task<bool> IsEmailConfirmed(string email);
         Task<bool> RemoveRoleSeller(string UserId); 
         Task<bool> UpdateUser(string UserId,UpdateUserDto userDto); 
-        Task<bool> UpdateUserPassword(string  UserId, string Password);
+        Task<bool> ForgotPassword(ForgotPasswordModel request, string requestScheme, string requestHost);
+        Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPassword(ResetPasswordModel request);
         Task<bool> DeleteUser(string UserId);
         Task<bool> SellerRole(string UserId);
-        Task<bool> Login(UserLogin users);
+        Task<UserLogin> Login(UserLogin users);
         Task<UserRefreshTokens> AddUserRefreshTokens(UserRefreshTokens user);
         Task<UserRefreshTokens> GetSavedRefreshTokens(string username, string refreshtoken);
         void DeleteUserRefreshTokens(string username, string refreshToken);
-
+        //Task<bool> VerifiyEmail(VerifiyEmail request);
+        Task<User> VerifiyEmail(string verificationToken);
 
 
 

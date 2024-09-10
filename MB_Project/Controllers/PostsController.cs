@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using System.Drawing;
 
 
@@ -41,78 +42,84 @@ namespace MB_Project.Controllers
             _context = context;
             _jwtManagerRepo = jwtManagerRepo;
         }
+
+
+        [AllowAnonymous]
         // GET: api/<PostController>
         [HttpGet()]
-        public async Task<IActionResult> GetAllPosts()
+        public async Task<IActionResult> GetAllWorks()
         {
             try
             {
-                var DtoList = new List<ViewPostDto>();
-                var obj = await _postRepo.GetPosts();
-                if (obj.Count() == 0)
+                var posts = await _postRepo.GetPosts();
+                if (posts.Count() == 0)
                 {
-                    return NotFound("no posts");
+                    return NotFound("No posts exist");
                 }
-                foreach (var item in obj)
+                var DtoList = new List<ViewPostDto>();
+                foreach (var item in posts)
                 {
                     DtoList.Add(_mapper.Map<ViewPostDto>(item));
                 }
                 return Ok(DtoList);
             }
-            catch
+            catch (Exception ex)
             {
-                return BadRequest();
+                return BadRequest($"No posts exist:{ex.Message}");
             }
         }
         // GET api/<PostController>/5
 
-        
+
+        [AllowAnonymous]
         [HttpGet("{workId}")]
-        public async Task<IActionResult> GetPostById(int workId)
+        public async Task<IActionResult> GetWorkById(int workId)
         {
             try
             {
-                var obj = await _postRepo.GetPostsById(workId);
-                if (obj == null)
+                var post = await _postRepo.GetPostsById(workId);
+                if (post == null)
                 {
-                    return NotFound("not found");
+                    return NotFound("Work does not exist");
                 }
-                var Dto = _mapper.Map<ViewPostDto>(obj);
+                var Dto = _mapper.Map<ViewPostDto>(post);
                 return Ok(Dto);
             }
-            catch
+            catch (Exception ex)
             {
-                return BadRequest();
+                return BadRequest($"Work does not exist:{ex.Message}");
             }
         }
-        
-        
+
+
+        [AllowAnonymous]
         [HttpGet("post/{postName}")]
-        public async Task<IActionResult> Search(string postName)
+        public async Task<IActionResult> WorkSearch(string postName)
         {
             try
             {
-                var DtoList = new List<ViewPostDto>();
-                var obj = await _postRepo.SearchPosts(postName);
-                if (obj == null)
+                var posts = await _postRepo.SearchPosts(postName);
+                if (posts.Count() == 0)
                 {
-                    return NotFound("not found");
+                    return NotFound("No work found");
                 }
-                foreach (var item in obj)
+                var DtoList = new List<ViewPostDto>();
+                foreach (var item in posts)
                 {
                     DtoList.Add(_mapper.Map<ViewPostDto>(item));
                 }
                 return Ok(DtoList);
             }
-            catch
+            catch (Exception ex)
             {
-                return BadRequest();
+                return BadRequest($"No post found:{ex.Message}");
             }
         }
-        
-        
+
+
+        [AllowAnonymous]
         [HttpGet("freelancer/{freelancerId}")]
-        public async Task<IActionResult> GetUserPosts(string freelancerId)
+        public async Task<IActionResult> GetFreelancerWorks(string freelancerId)
         {
             try
             {
@@ -133,11 +140,11 @@ namespace MB_Project.Controllers
                 return BadRequest();
             }
         }
-        
 
-        
+
+        [AllowAnonymous]
         [HttpGet("category/{categoryId}")]
-        public async Task<IActionResult> GetPostsByCategoryId(int categoryId)
+        public async Task<IActionResult> GetWorksByCategoryId(int categoryId)
         {
             try
             {
@@ -160,11 +167,15 @@ namespace MB_Project.Controllers
         }
 
         
-        //[Authorize(Roles = "ADMIN , SELLER , CLIENT")]
+        //[Authorize(Roles = "SELLER")]
         // POST api/<PostController>
         [HttpPost()]
-        public async Task<IActionResult> CreatePost([FromForm] CreatePostDto postDto)
+        public async Task<IActionResult> CreateWork([FromForm] CreatePostDto postDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {   
                 /*
@@ -187,19 +198,23 @@ namespace MB_Project.Controllers
                     return Unauthorized();
                 }
                 */
-
+                
 
                 _transactionRepo.BeginTransaction();
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
                 //var chk = await _userRepo.GetUserRoles(postDto.FreelancerId);
                 //if (!chk.Contains("SELLER"))
                 //{
                 //    return Forbid();
                 //}
 
+                string accessToken = Request.Headers[HeaderNames.Authorization];
+                var token = accessToken.Substring(7);
+                var FreelancerId = _jwtManagerRepo.GetUserId(token);
+                if(FreelancerId == null)
+                {
+                    return BadRequest("No freelancerId in the request header");
+                }
+                
                 string uniqueFileName = await _postRepo.SaveUploadedFile(postDto.MainImage);
                 if (uniqueFileName == "size")
                 {
@@ -217,12 +232,14 @@ namespace MB_Project.Controllers
                 }
                 post.Categories = Catlist;
                 */
-                var postObj = await _postRepo.CreatePost(post);
-                if (postObj == null) // 0 means fail
+
+                post.FreelancerId = FreelancerId;
+                var postCreated = await _postRepo.CreatePost(post);
+                if (postCreated == null) // 0 means fail
                 {
                     _postRepo.DeleteFile(uniqueFileName);
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("post was not created");
+                    return BadRequest("Post was not created");
                 }
                 var PstCat = new List<PostCategory>();
                 foreach (var cat in postDto.CategoriesIds)
@@ -230,7 +247,7 @@ namespace MB_Project.Controllers
                     var postCategory = new PostCategory
                     {
                         CategoryId = cat,
-                        PostId = postObj.Id
+                        WorkId = postCreated.Id
                     };
                     PstCat.Add(postCategory);
                 }
@@ -239,7 +256,7 @@ namespace MB_Project.Controllers
                 {
                     _postRepo.DeleteFile(uniqueFileName);
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("post was not created");
+                    return BadRequest("post was not created");
                 }
                 /*
                 foreach (var item in postDto.SecondaryPicturesUrl)
@@ -260,12 +277,12 @@ namespace MB_Project.Controllers
                 }
                 */
                 _transactionRepo.CommitTransaction();
-                return Ok(postObj);
+                return Ok(postCreated);
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"post was not created:{ex.Message}");
             }
         }
         
@@ -273,28 +290,28 @@ namespace MB_Project.Controllers
         //[Authorize(Roles = "ADMIN , SELLER")]
         // PUT api/<PostController>/5
         [HttpPut("{workId}")]
-        public async Task<IActionResult> UpdatePost(int workId, [FromForm] UpdatePostDto postDto)
+        public async Task<IActionResult> UpdateWork(int workId, [FromForm] UpdatePostDto postDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
                 _transactionRepo.BeginTransaction();
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-                var chk = await _postRepo.UpdatePost(workId, postDto);
-                if (chk == false)
+                var postUpdated = await _postRepo.UpdatePost(workId, postDto);
+                if (!postUpdated)
                 {
                     _transactionRepo.RollBackTransaction();
-                    return BadRequest("error");
+                    return BadRequest("Work was not updated");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok();
+                return Ok("Work updated");
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"Work was not updated:{ex.Message}");
             }
         }
         
@@ -302,29 +319,34 @@ namespace MB_Project.Controllers
         //[Authorize(Roles = "ADMIN , SELLER")]
         // DELETE api/<PostController>/5
         [HttpDelete("{workId}")]
-        public async Task<IActionResult> DeletePost(int workId)
+        public async Task<IActionResult> DeleteWork(int workId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
                 _transactionRepo.BeginTransaction();
-                var chkImg = await _postRepo.DeletePostMainImage(workId);
-                var chk = await _postRepo.DeletePost(workId);
-                if (chk == false)
+                var imageDeleted = await _postRepo.DeletePostMainImage(workId);
+                if (!imageDeleted)
                 {
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("post does not exist");
+                    return BadRequest("Image was not deleted, so work was not deleted!");
+                }
+                var postDeleted = await _postRepo.DeletePost(workId);
+                if (!postDeleted)
+                {
+                    _transactionRepo.RollBackTransaction();
+                    return BadRequest("Work was not deleted");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok();
+                return Ok("Work deleted");
             }
-            catch 
+            catch (Exception ex)
             { 
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"Work was not deleted:{ex.Message}");
             }
         }
 

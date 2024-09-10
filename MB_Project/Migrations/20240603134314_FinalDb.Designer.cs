@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MB_Project.Migrations
 {
     [DbContext(typeof(MB_ProjectContext))]
-    [Migration("20240405113633_NewDataBase")]
-    partial class NewDataBase
+    [Migration("20240603134314_FinalDb")]
+    partial class FinalDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,20 +56,20 @@ namespace MB_Project.Migrations
                     b.Property<string>("OrderStatus")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PostId")
-                        .HasColumnType("int");
-
                     b.Property<float?>("TotalPrice")
                         .HasColumnType("real");
 
                     b.Property<string>("UserId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("WorkId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkId");
 
                     b.ToTable("Orders");
                 });
@@ -95,6 +95,9 @@ namespace MB_Project.Migrations
                     b.Property<string>("MainImage")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<double>("StarRating")
+                        .HasColumnType("float");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -114,12 +117,15 @@ namespace MB_Project.Migrations
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("PostId")
+                    b.Property<int>("PostsId")
                         .HasColumnType("int");
 
-                    b.HasKey("CategoryId", "PostId");
+                    b.Property<int>("WorkId")
+                        .HasColumnType("int");
 
-                    b.HasIndex("PostId");
+                    b.HasKey("CategoryId", "PostsId");
+
+                    b.HasIndex("PostsId");
 
                     b.ToTable("PostCategories");
                 });
@@ -132,9 +138,6 @@ namespace MB_Project.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("PostId")
-                        .HasColumnType("int");
-
                     b.Property<float>("Price")
                         .HasColumnType("real");
 
@@ -142,9 +145,12 @@ namespace MB_Project.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("WorkId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId");
+                    b.HasIndex("WorkId");
 
                     b.ToTable("PostFeatures");
                 });
@@ -161,12 +167,12 @@ namespace MB_Project.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PostId")
+                    b.Property<int?>("WorkId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId");
+                    b.HasIndex("WorkId");
 
                     b.ToTable("PostsImages");
                 });
@@ -183,9 +189,6 @@ namespace MB_Project.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("PostId")
-                        .HasColumnType("int");
-
                     b.Property<int>("Rating")
                         .HasColumnType("int")
                         .HasColumnName("Rating")
@@ -194,11 +197,14 @@ namespace MB_Project.Migrations
                     b.Property<string>("UserId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("WorkId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkId");
 
                     b.ToTable("Reviews");
                 });
@@ -501,18 +507,22 @@ namespace MB_Project.Migrations
                     b.Property<DateTime>("RefreshTokenExpiryTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ValidationEmailToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasDiscriminator().HasValue("User");
                 });
 
             modelBuilder.Entity("MB_Project.Models.Order", b =>
                 {
-                    b.HasOne("MB_Project.Models.Post", "Post")
-                        .WithMany("Orders")
-                        .HasForeignKey("PostId");
-
                     b.HasOne("MB_Project.Models.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId");
+
+                    b.HasOne("MB_Project.Models.Post", "Post")
+                        .WithMany("Orders")
+                        .HasForeignKey("WorkId");
 
                     b.Navigation("Post");
 
@@ -538,7 +548,7 @@ namespace MB_Project.Migrations
 
                     b.HasOne("MB_Project.Models.Post", null)
                         .WithMany()
-                        .HasForeignKey("PostId")
+                        .HasForeignKey("PostsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -547,7 +557,7 @@ namespace MB_Project.Migrations
                 {
                     b.HasOne("MB_Project.Models.Post", "Post")
                         .WithMany("PostFeatures")
-                        .HasForeignKey("PostId");
+                        .HasForeignKey("WorkId");
 
                     b.Navigation("Post");
                 });
@@ -556,7 +566,7 @@ namespace MB_Project.Migrations
                 {
                     b.HasOne("MB_Project.Models.Post", "Post")
                         .WithMany("SecondaryImages")
-                        .HasForeignKey("PostId")
+                        .HasForeignKey("WorkId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Post");
@@ -564,13 +574,13 @@ namespace MB_Project.Migrations
 
             modelBuilder.Entity("MB_Project.Models.Review", b =>
                 {
-                    b.HasOne("MB_Project.Models.Post", "Post")
-                        .WithMany("Reviews")
-                        .HasForeignKey("PostId");
-
                     b.HasOne("MB_Project.Models.User", "User")
                         .WithMany("Reviews")
                         .HasForeignKey("UserId");
+
+                    b.HasOne("MB_Project.Models.Post", "Post")
+                        .WithMany("Reviews")
+                        .HasForeignKey("WorkId");
 
                     b.Navigation("Post");
 

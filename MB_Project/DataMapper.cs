@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using MB_Project.Models;
 using MB_Project.Models.DTOS.CategoryDto;
+using MB_Project.Models.DTOS.MessageDto;
 using MB_Project.Models.DTOS.OrderDto;
 using MB_Project.Models.DTOS.PostDto;
 using MB_Project.Models.DTOS.PostFeatureDto;
@@ -43,7 +44,7 @@ namespace MB_Project
             CreateMap<PostFeature, UpdatePostFeatureDto>().ReverseMap();
 
             
-
+            CreateMap<Message, CreateMessageDto>().ReverseMap();
         }
 
     }

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.Blazor;
+using NuGet.Common;
 using System.Text.Encodings.Web;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -31,6 +32,7 @@ namespace MB_Project.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly IPostRepo _postRepo;
+        private readonly IEmailService _emailService;
         public UsersController(
 
                               IMapper mapper,
@@ -39,7 +41,8 @@ namespace MB_Project.Controllers
                               ITransactionRepo transactionRepo,
                               IJWTManagerRepo jwtManagerRepo,
                               UserManager<IdentityUser> userManager,
-                              IPostRepo postRepo)
+                              IPostRepo postRepo,
+                              IEmailService emailService)
         {
             _mapper = mapper;
             _userRepo = userRepo;
@@ -48,13 +51,14 @@ namespace MB_Project.Controllers
             _jwtManagerRepo = jwtManagerRepo;
             _userManager = userManager;
             _postRepo = postRepo;
+            _emailService = emailService;
         }
 
 
 
 
 
-        //[Authorize]
+        //[Authorize(Roles = "ADMIN")]
         // GET: api/<UserController>
         [HttpGet()]
         public async Task<IActionResult> GetAllUsers()
@@ -75,7 +79,7 @@ namespace MB_Project.Controllers
         }
 
 
-        //[Authorize]
+        [AllowAnonymous]
         // GET api/<UserController>/5
         [HttpGet("{UserId}")]
         public async Task<IActionResult> GetUserById(string UserId)
@@ -95,9 +99,8 @@ namespace MB_Project.Controllers
             }
         }
         
-        
 
-        //[Authorize]
+        [Authorize(Roles ="ADMIN")]
         [HttpGet("UserRoles/{UserId}")]
         public async Task<IActionResult> GetUserRoles(string UserId)
         {
@@ -119,6 +122,28 @@ namespace MB_Project.Controllers
         }
 
 
+        [AllowAnonymous]
+        [HttpGet("verify/{verificationToken}")]
+        public async Task<IActionResult> VerifiyEmail(string verificationToken)
+        {
+            try
+            {
+                //var chk = await _userRepo.VerifiyEmail(request);
+                var user = await _userRepo.VerifiyEmail(verificationToken);
+                if (user is null)
+                {
+                    return BadRequest("Invalid email or token.");
+                }
+                return Ok("Thank you for validation");
+            }
+            catch
+            {
+                return BadRequest();
+            }
+        }
+
+
+        [AllowAnonymous]
         [HttpPost("signup")]
         public async Task<IActionResult> Register([FromForm]CreateUserDto userDto)
         {
@@ -136,7 +161,7 @@ namespace MB_Project.Controllers
                     return BadRequest(result.Message);
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok("Account Created");
+                return Ok("Registration successful. Please check your email to verify your account.");
             }
             catch
             {
@@ -146,6 +171,7 @@ namespace MB_Project.Controllers
         }
 
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLogin userLogin)
         {
@@ -156,9 +182,9 @@ namespace MB_Project.Controllers
                     return BadRequest(ModelState);
                 }
                 var result = await _userRepo.Login(userLogin);
-                if (!result)
+                if (result.IsAuthenticated is false)
                 {
-                    return BadRequest("Invalid Email Or Password....");
+                    return BadRequest(result.Message);
                 }
                 //if (!await _userRepo.IsEmailConfirmed(userLogin.email))
                 //{
@@ -191,10 +217,12 @@ namespace MB_Project.Controllers
             {
                 return BadRequest();
             }
-        }
+         }
 
+
+        [AllowAnonymous]
         [HttpPost("refreshToken")]
-        public async Task<IActionResult> RefreshToken(Token token)
+        public async Task<IActionResult> RefreshToken(MyToken token)
         {
             var principal = _jwtManagerRepo.GetPrincipalFromExpiredToken(token.AccessToken);
             var username = principal.Identity?.Name;
@@ -225,6 +253,8 @@ namespace MB_Project.Controllers
             return Ok(newJwtToken);
         }
 
+
+        //[Authorize(Roles = "ADMIN")]
         [HttpPost("SetUserToSeller/{userId}")]
         public async Task<IActionResult> SetUserToSeller(string userId)
         {
@@ -251,7 +281,8 @@ namespace MB_Project.Controllers
             }
         }
 
-        //[Authorize]
+
+        //[Authorize(Roles = "ADMIN")]
         [HttpGet("sellers")]
         public async Task<IActionResult> GetSellers()
         {
@@ -271,8 +302,7 @@ namespace MB_Project.Controllers
         }
         
         
-        
-        //[Authorize]
+        //[Authorize(Roles = "ADMIN")]
         [HttpDelete("removeseller/{UserId}")]
         public async Task<IActionResult> DeleteSeller(string UserId)
         {
@@ -328,10 +358,10 @@ namespace MB_Project.Controllers
                 }
             }
 
-
+        // this api for verifiy his email then the second(under) api for reset
         //[Authorize]
-        [HttpPut("UpdateUserPassword/{UserId}")]
-        public async Task<IActionResult> UpdateUserPassword([FromBody]string password, string UserId)
+        [HttpPost("Forgot-Password")]
+        public async Task<IActionResult> ForgotPasswordConfirmation([FromBody]ForgotPasswordModel request)
         {
             try
             {
@@ -339,8 +369,10 @@ namespace MB_Project.Controllers
                 {
                     return BadRequest(ModelState);
                 }
+                /*
                 _transactionRepo.BeginTransaction();
-                var chk = await _userRepo.UpdateUserPassword(UserId, password);
+
+                var chk = await _userRepo.ForgotPassword(request);
                 if (chk == false)
                 {
                     _transactionRepo.RollBackTransaction();
@@ -348,6 +380,16 @@ namespace MB_Project.Controllers
                 }
                 _transactionRepo.CommitTransaction();
                 return Ok("Password updated");
+                */
+                _transactionRepo.BeginTransaction();
+                var succeeded = await _userRepo.ForgotPassword(request, Request.Scheme, Request.Host.Value);
+                if (!succeeded)
+                {
+                    _transactionRepo.RollBackTransaction();
+                    return BadRequest(new { message = "User not found" });
+                }
+                _transactionRepo.CommitTransaction();
+                return Ok(new { message = "Password reset link has been sent to your email." });
             }
             catch 
             {
@@ -356,37 +398,77 @@ namespace MB_Project.Controllers
             }
         }
 
-
-        //[Authorize]
-        // DELETE api/<UserController>/5
-        [HttpDelete("{UserId}")]
-        public async Task<IActionResult> DeleteUser(string UserId)
-            {
+        // when user verifiy his eamil will come to this api
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody]ResetPasswordModel request)
+        {
             try
             {
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
+                /*
                 _transactionRepo.BeginTransaction();
-                var chk1 = await _userRepo.DeleteUserImage(UserId);
-                if (!chk1)
+                User user = await _userRepo.ResetPassword(request);
+                if (user is null) 
+                {
+                    _transactionRepo.RollBackTransaction();
+                    return BadRequest();
+                }
+                _transactionRepo.CommitTransaction();
+                return Ok(user);
+                */
+
+                _transactionRepo.BeginTransaction();
+                var (succeeded, errors) = await _userRepo.ResetPassword(request);
+                if (!succeeded)
+                {
+                    _transactionRepo.RollBackTransaction();
+                    return BadRequest(new { errors });
+                }
+                _transactionRepo.CommitTransaction();
+                return Ok(new { message = "Password reset successful" });
+
+            }
+            catch
+            {
+                _transactionRepo.RollBackTransaction();
+                return BadRequest();
+            }
+        }
+
+
+        //[Authorize(Roles = "ADMIN")]
+        // DELETE api/<UserController>/5
+        [HttpDelete("{UserId}")]
+        public async Task<IActionResult> DeleteUser(string UserId)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            try
+            {
+                _transactionRepo.BeginTransaction();
+                var imageDeleted = await _userRepo.DeleteUserImage(UserId);
+                if (!imageDeleted)
                 {
                     return BadRequest("image was not Deleted");
                 }
-                var obj = await _userRepo.DeleteUser(UserId);
-                if (obj == false)
+                var deleteUserResult = await _userRepo.DeleteUser(UserId);
+                if (!deleteUserResult)
                 {
                     _transactionRepo.RollBackTransaction();
                     return BadRequest("User was not Deleted");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok("User Deleted");
+                return Ok("User deleted successfully");
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest("User was not Deleted");
+                return BadRequest($"User was not Deleted:{ex.Message}");
             }
         }
 

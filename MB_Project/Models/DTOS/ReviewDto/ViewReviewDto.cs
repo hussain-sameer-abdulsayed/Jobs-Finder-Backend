@@ -7,7 +7,7 @@ namespace MB_Project.Models.DTOS.ReviewDto
         public int Id { get; set; }
         public string Content { get; set; }
         public int Rating { get; set; }  // 1 - 5
-        public int? PostId { get; set; }
+        public int? WorkId { get; set; }
         public string? UserId { get; set; }
 
     }

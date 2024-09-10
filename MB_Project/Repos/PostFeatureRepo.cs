@@ -14,11 +14,12 @@ namespace MB_Project.Repos
         {
             _context = context;
         }
-        public async Task<bool> Create(PostFeature postFeature)
+        public async Task<bool> Create(List<PostFeature> postFeature)
         {
             try
             {
-                await _context.PostFeatures.AddAsync(postFeature);
+                _context.AttachRange(postFeature);
+                await _context.PostFeatures.AddRangeAsync(postFeature);
                 _context.SaveChanges();
                 return true;
             }
@@ -62,7 +63,7 @@ namespace MB_Project.Repos
         {
             try
             {
-                var obj = await _context.PostFeatures.Where(x => x.PostId == Postid).ToListAsync();
+                var obj = await _context.PostFeatures.Where(x => x.WorkId == Postid).ToListAsync();
                 if (obj.Count() == 0)
                 {
                     return Enumerable.Empty<PostFeature>();

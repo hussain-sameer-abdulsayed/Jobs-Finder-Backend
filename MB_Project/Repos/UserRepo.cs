@@ -3,6 +3,7 @@ using MB_Project.AuthJwt;
 using MB_Project.Data;
 using MB_Project.IRepos;
 using MB_Project.Models;
+using MB_Project.Models.DTOS;
 using MB_Project.Models.DTOS.UserDto;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.AspNetCore.Hosting;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
+using NuGet.Common;
 using System.ComponentModel;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -34,6 +36,7 @@ namespace MB_Project.Repos
         private readonly Jwt _jwt;
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly IEmailService _emailService;
         public UserRepo(
                               MB_ProjectContext context,
                               UserManager<IdentityUser> userManager,
@@ -42,6 +45,8 @@ namespace MB_Project.Repos
                               IOptions<Jwt> jwt,
                               IConfiguration configuration,
                               IWebHostEnvironment webHostEnvironment
+,
+                              IEmailService emailService
                               /*IdentityUserRole<string> identityUserRole*/
                               )
         {
@@ -52,6 +57,7 @@ namespace MB_Project.Repos
             _jwt = jwt.Value;
             _configuration = configuration;
             _webHostEnvironment = webHostEnvironment;
+            _emailService = emailService;
             //_identityUserRole = identityUserRole;
         }
         private async Task<JwtSecurityToken> CreateJwtToken(User user)
@@ -155,7 +161,7 @@ namespace MB_Project.Repos
                     return ("size");
                 }
                 // Generate a unique file name
-                string uniqueFileName = Guid.NewGuid().ToString();
+                string uniqueFileName = Guid.NewGuid().ToString()+".png";
 
                 // Construct the file path
                 string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images/user");
@@ -362,14 +368,16 @@ namespace MB_Project.Repos
             //    // isAuthenticated in Auth Model is false by default i handle it to understand code
             //}
 
-            var uniqueFileName = await SaveUploadedFile(userDto.profileImage);
+            //var uniqueFileName = await SaveUploadedFile(userDto.profileImage);
             var newUser = new User
             {
                 UserName = userDto.Email,
                 Name = userDto.Name,
                 Email = userDto.Email,
-                ProfileImage = uniqueFileName,
-                Bio = userDto.Bio
+                //ProfileImage = uniqueFileName,
+                Bio = userDto.Bio,
+                // this is for email validation
+                ValidationEmailToken = Guid.NewGuid().ToString()
             };
             var result = await _userManager.CreateAsync(newUser, userDto.Password);
             if (!result.Succeeded)
@@ -379,9 +387,20 @@ namespace MB_Project.Repos
                 {
                     errors += $"{error.Description},"; 
                 }
-                DeleteFile(uniqueFileName);// delete image from system
+                //DeleteFile(uniqueFileName);// delete image from system
                 return new UserRefreshTokens { Message = errors, IsAuthenticated = false };
             }
+            var uniqueFileName = await SaveUploadedFile(userDto.profileImage);
+            _context.Attach(newUser);
+            newUser.ProfileImage = uniqueFileName;
+            await _context.SaveChangesAsync();
+            EmailDto email = new EmailDto()
+            {
+                To = newUser.Email,
+                Subject = "Email Verification",
+                Body = $"Please click the following link to verify your email: <a href='https://localhost:7181/api/users/verify/{Uri.EscapeDataString(newUser.ValidationEmailToken)}'>Verify Email</a>"
+            };
+            //_emailService.SendValidationEmail(email);
             if (userDto.isFreelancer == true)
             {
                 await _userManager.AddToRoleAsync(newUser, "SELLER");
@@ -441,26 +460,24 @@ namespace MB_Project.Repos
                 return false;
             }
         }
-        public async Task<bool> UpdateUserPassword(string UserId, string Password)
+        public async Task<bool> ForgotPassword(ForgotPasswordModel request, string requestScheme, string requestHost)
         {
             try
             {
-                var user = await _context.Users.FindAsync(UserId);
+                var user = await _userManager.FindByEmailAsync(request.Email);
                 if (user == null)
                 {
                     return false;
-                }
-                ;
-                byte[] salt = RandomNumberGenerator.GetBytes(128 / 8); // divide by 8 to convert bits to bytes
-                // derive a 256-bit subkey (use HMACSHA256 with 100,000 iterations)
-                string hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
-                    password: Password!,
-                    salt: salt,
-                    prf: KeyDerivationPrf.HMACSHA256,
-                    iterationCount: 100000,
-                    numBytesRequested: 256 / 8));
-                user.PasswordHash = hashed;
-                await _context.SaveChangesAsync();
+                };
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var callbackUrl = $"{requestScheme}://{requestHost}/api/users/reset-password?token={token}&email={user.Email}";
+                EmailDto email = new EmailDto()
+                {
+                    To = user.Email,
+                    Subject = "Reset Password",
+                    Body = $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>"
+                };
+                _emailService.SendValidationEmail(email);
                 return true;
             }
             catch
@@ -468,6 +485,37 @@ namespace MB_Project.Repos
                 return false;
             }
         }
+        public async Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPassword(ResetPasswordModel request)
+        {
+            /*
+                var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == request.Email);
+                if (user == null)
+                    return (false, new[] { "User not found" });
+                byte[] salt = RandomNumberGenerator.GetBytes(128 / 8); // divide by 8 to convert bits to bytes
+                // derive a 256-bit subkey (use HMACSHA256 with 100,000 iterations)
+                string hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
+                    password: request.Password!,
+                    salt: salt,
+                    prf: KeyDerivationPrf.HMACSHA256,
+                    iterationCount: 100000,
+                    numBytesRequested: 256 / 8));
+                _context.Attach(user);
+                user.PasswordHash = hashed;
+                await _context.SaveChangesAsync();
+                return user;
+                */
+
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null)
+                return (false, new[] { "User not found" });
+
+            var result = await _userManager.ResetPasswordAsync(user, request.Token, request.Password);
+            if (result.Succeeded)
+                return (true, Enumerable.Empty<string>());
+
+            return (false, result.Errors.Select(e => e.Description));
+
+        } 
         public async Task<bool> RemoveRoleAdmin(string UserId)
         {
             try
@@ -600,14 +648,18 @@ namespace MB_Project.Repos
             }
         }
 
-        public async Task<bool> Login(UserLogin users)
+        public async Task<UserLogin> Login(UserLogin users)
         {
             var user = await _userManager.FindByEmailAsync(users.email);
             if (user is null || !await _userManager.CheckPasswordAsync(user, users.password))
             {
-                return false;
+                return new UserLogin { IsAuthenticated=false,Message="Email or Password is incorrect" };
             }
-            return true;
+            if (!user.EmailConfirmed)
+            {
+                return new UserLogin { IsAuthenticated = false, Message = "You need to verifiy your email" };
+            }
+            return new UserLogin{IsAuthenticated=true };
         }
         
             
@@ -639,6 +691,21 @@ namespace MB_Project.Repos
             {
                 _context.UserRefreshTokens.Remove(item);
             }
+        }
+
+        public async Task<User> VerifiyEmail(/*VerifiyEmail req*/ string verificationToken)
+        {
+            //var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == req.Email && x.ValidationEmailToken == req.Token);
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.ValidationEmailToken == verificationToken);
+            if (user is null)
+            {
+                return null;
+            }
+            _context.Attach(user);
+            user.EmailConfirmed = true;
+            user.ValidationEmailToken = null;
+            await _context.SaveChangesAsync();
+            return user;
         }
 
 

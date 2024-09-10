@@ -5,8 +5,8 @@ namespace MB_Project.Models
     public class PostFeature
     {
         public int Id { get; set; }
-        public int? PostId { get; set; }
-        [ForeignKey("PostId")]
+        public int? WorkId { get; set; }
+        [ForeignKey("WorkId")]
         public Post? Post { get; set; }
         public string Title { get; set; }
         public float Price { get; set; }

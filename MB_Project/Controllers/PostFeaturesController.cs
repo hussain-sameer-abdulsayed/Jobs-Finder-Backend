@@ -25,7 +25,12 @@ namespace MB_Project.Controllers
             _postFeatureRepo = postFeatureRepo;
             _transactionRepo = transactionRepo;
         }
-        //[Authorize]
+
+
+
+
+
+        [AllowAnonymous]
         // GET api/<PostFeatureController>/5
         [HttpGet("{PostId}")]
         public async Task<IActionResult> GetPostFeatures(int PostId)
@@ -51,10 +56,10 @@ namespace MB_Project.Controllers
         }
 
 
-        //[Authorize]
+        //[Authorize(Roles ="SELLER")]
         // POST api/<PostFeatureController>
         [HttpPost()]
-        public async Task<IActionResult> CreatePostFeature([FromBody] CreatePostFeatureDto postFeatureDto)
+        public async Task<IActionResult> CreatePostFeature([FromBody] List<CreatePostFeatureDto> postFeatureDto)
         {
             
             try
@@ -62,11 +67,15 @@ namespace MB_Project.Controllers
                 _transactionRepo.BeginTransaction();
                 // check if post exist or not ==> add IpostRepo 
                 //var post = 
-                if (!ModelState.IsValid)
+                if (!ModelState.IsValid && postFeatureDto.Count == 0)
                 {
                     return BadRequest(ModelState);
                 }
-                var obj = _mapper.Map<PostFeature>(postFeatureDto);
+                var obj = new List<PostFeature>();
+                foreach(var item in postFeatureDto)
+                {
+                    obj.Add(_mapper.Map<PostFeature>(item));
+                }
                 var chk = await _postFeatureRepo.Create(obj);
                 if(chk == false)
                 {
@@ -84,7 +93,7 @@ namespace MB_Project.Controllers
         }
 
 
-        //[Authorize]
+        //[Authorize(Roles ="SELLER")]
         // PUT api/<PostFeatureController>/5
         [HttpPut("{PostFeatureId}")]
         public async Task<IActionResult> UpdatePostFeature(int PostFeatureId, [FromBody] UpdatePostFeatureDto postFeatureDto)
@@ -115,7 +124,7 @@ namespace MB_Project.Controllers
         }
 
 
-        //[Authorize]
+        //[Authorize(Roles = "SELLER")]
         // DELETE api/<PostFeatureController>/5
         [HttpDelete("{PostFeatureId}")]
         public async Task<IActionResult> DeletePostFeature(int PostFeatureId)

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace MB_Project.Controllers
 {
+    [Authorize]
     [Route("api/categories")]
     [ApiController]
     public class CategoriesController : ControllerBase
@@ -28,12 +29,21 @@ namespace MB_Project.Controllers
             _transactionRepo = transactionRepo;
         }
 
+
+
+
+
+
+
         // GET: api/<CategoryController>
+        [AllowAnonymous]
         [HttpGet()]
         public async Task<IActionResult> GetAllCategories()
         {
             try
             {
+                string token = HttpContext.Request.Headers["Authorization"];
+                Console.WriteLine("token: ",token);
                 var DtoList = new List<ViewCategoryDto>();
                 var obj = await _categoryRepo.GetAllCategories();
                 if (obj.Count() == 0) 
@@ -53,7 +63,7 @@ namespace MB_Project.Controllers
         }
 
 
-        
+        [AllowAnonymous]
         // GET api/<CategoryController>/5
         [HttpGet("{categoryId}")]
         public async Task<IActionResult> GetCategoryById(int categoryId)
@@ -74,8 +84,8 @@ namespace MB_Project.Controllers
             }
         }
 
-
-        
+        /*
+        [AllowAnonymous]
         [HttpGet("category/{categoryName}")]
         public async Task<IActionResult> GetCategoryByName(string categoryName)
         {
@@ -93,7 +103,7 @@ namespace MB_Project.Controllers
                 return BadRequest();
             }
         }
-
+        */
 
         //[Authorize(Roles ="ADMIN")]
         // POST api/<CategoryController>

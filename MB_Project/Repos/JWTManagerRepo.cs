@@ -24,35 +24,68 @@ namespace MB_Project.Repos
             _context = context;
         }
 
-        public async Task<Token> GenerateRefreshToken(string userName)
+        public async Task<MyToken> GenerateRefreshToken(string userName)
         {
             return await GenerateJWTTokens(userName);
         }
-        public async Task<Token> GenerateToken(string userName)
+        public async Task<MyToken> GenerateToken(string userName)
         {
             return await GenerateJWTTokens(userName);
         }
-        public async Task<Token> GenerateJWTTokens(string userName)
+        public async Task<MyToken> GenerateJWTTokens(string userName)
         {
             try
             {
                 var user =await _userManager.FindByNameAsync(userName);
-                var expireTimeInMinutes = 1;//change it to 1
+                var userRoles = await _userManager.GetRolesAsync(user);
+                var isSeller = false;
+                if (userRoles.Any(r=>r == "SELLER")) 
+                {
+                    isSeller = true;
+                }
+                //List<string> Roles = new List<string>(userRoles);
+                var expireTimeInMinutes = 6000000;//change it to 1
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var tokenKey = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
-                var tokenDescriptor = new SecurityTokenDescriptor
+                if (isSeller)
                 {
-                    Subject = new ClaimsIdentity(new Claim[]
+                    var tokenDescriptor = new SecurityTokenDescriptor
+                    {
+                        Subject = new ClaimsIdentity(new Claim[]
                   {
-                    new Claim(ClaimTypes.Name, userName,user.Email)
+                    new Claim(ClaimTypes.Name, userName,user.Email),
+                    new Claim(ClaimTypes.NameIdentifier,user.Id),
+                    new Claim(ClaimTypes.Role,"CLIENT"),
+                    new Claim(ClaimTypes.Role,"SELLER"),
+                    new Claim(JwtRegisteredClaimNames.Aud, _configuration["Jwt:Audience"]),
+                    new Claim(JwtRegisteredClaimNames.Iss, _configuration["Jwt:Issuer"])
                   }),
-                    Expires = DateTime.Now.AddMinutes(expireTimeInMinutes),
-                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature)
-                };
+                        Expires = DateTime.Now.AddMinutes(expireTimeInMinutes),
+                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature)
+                    };
+                    var token = tokenHandler.CreateToken(tokenDescriptor);
+                    var refreshToken = GenerateRefreshToken();
+                    return new MyToken { AccessToken = tokenHandler.WriteToken(token), RefreshToken = refreshToken };
+                }
+                else
+                {
+                    var tokenDescriptor = new SecurityTokenDescriptor
+                    {
+                        Subject = new ClaimsIdentity(new Claim[]
+                  {
+                    new Claim(ClaimTypes.Name, userName,user.Email),
+                    new Claim(ClaimTypes.NameIdentifier,user.Id),
+                    new Claim(ClaimTypes.Role,"CLIENT")
+                  }),
+                        Expires = DateTime.Now.AddMinutes(expireTimeInMinutes),
+                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature)
+                    };
+                    var token = tokenHandler.CreateToken(tokenDescriptor);
+                    var refreshToken = GenerateRefreshToken();
+                    return new MyToken { AccessToken = tokenHandler.WriteToken(token), RefreshToken = refreshToken };
+                }
 
-                var token = tokenHandler.CreateToken(tokenDescriptor);
-                var refreshToken = GenerateRefreshToken();
-                return new Token { AccessToken = tokenHandler.WriteToken(token), RefreshToken = refreshToken };
+                
             }
             catch
             {
@@ -108,8 +141,105 @@ namespace MB_Project.Repos
 
             return principal;
         }
+        public JwtSecurityToken ConvertJwtStringToJwtSecurityToken(string? jwt)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(jwt);
+
+            return token;
+        }
+        /*
+        public static DecodedToken DecodeJwt(JwtSecurityToken token)
+        {
+            var keyId = token.Header.Kid;
+            var audience = token.Audiences.ToList();
+            var claims = token.Claims.Select(claim => (claim.Type, claim.Value)).ToList();
+            return new DecodedToken(
+                keyId,
+                token.Issuer,
+                audience,
+                claims,
+                token.ValidTo,
+                token.SignatureAlgorithm,
+                token.RawData,
+                token.Subject,
+                token.ValidFrom,
+                token.EncodedHeader,
+                token.EncodedPayload
+            );
+        }
+        */
+        public class DecodedToken
+        {
+            public string KeyId { get; set; }
+            public string Issuer { get; set; }
+            public List<string> Audiences { get; set; }
+            public List<(string Type, string Value)> Claims { get; set; }
+            public DateTime ValidTo { get; set; }
+            public string SignatureAlgorithm { get; set; }
+            public byte[] RawData { get; set; }
+            public string Subject { get; set; }
+            public DateTime ValidFrom { get; set; }
+            public string EncodedHeader { get; set; }
+            public string EncodedPayload { get; set; }
+
+            public DecodedToken(
+                string keyId,
+                string issuer,
+                List<string> audiences,
+                List<(string Type, string Value)> claims,
+                DateTime validTo,
+                string signatureAlgorithm,
+                string subject,
+                DateTime validFrom,
+                string encodedHeader,
+                string encodedPayload)
+            {
+                KeyId = keyId;
+                Issuer = issuer;
+                Audiences = audiences;
+                Claims = claims;
+                ValidTo = validTo;
+                SignatureAlgorithm = signatureAlgorithm;
+                Subject = subject;
+                ValidFrom = validFrom;
+                EncodedHeader = encodedHeader;
+                EncodedPayload = encodedPayload;
+            }
+        }
+        private string GetUserIdFromClaims(List<(string Type, string Value)> claims)
+        {
+            // Here you should search for the claim that represents the user ID.
+            // Replace "UserIdClaimType" with the actual type of claim representing the user ID.
+            var userIdClaim = claims.FirstOrDefault(claim => claim.Type == "nameid");
+
+            if (userIdClaim != default)
+            {
+                return userIdClaim.Value;
+            }
+
+            // If the user ID claim is not found, you can return null or an empty string, or handle it differently based on your requirement.
+            return null;
+        }
+        public string GetUserId(string mytoken)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.ReadJwtToken(mytoken);
+
+            var userIdClaim = token.Claims.FirstOrDefault(claim => claim.Type == "nameid");
+
+            if (userIdClaim != null)
+            {
+                string userId = userIdClaim.Value;
+                // Use userId as needed
+                return userId;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
     }
-
-
 }
 

@@ -18,6 +18,7 @@ namespace MB_Project.Models
         public List<Review>? Reviews { get; set; } // reviews
         public List<PostFeature>? PostFeatures { get; set; }
         public List<Order>? Orders { get; set; }
+        public double StarRating { get; set; }
 
     }
 }

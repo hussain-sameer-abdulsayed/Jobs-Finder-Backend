@@ -5,7 +5,7 @@ namespace MB_Project.Models.DTOS.PostFeatureDto
 {
     public class CreatePostFeatureDto
     {
-        public int? PostId { get; set; }
+        public int? WorkId { get; set; }
         [MaxLength(100)]
         public string Title { get; set; }
         [Range(0, 10000000)]

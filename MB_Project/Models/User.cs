@@ -11,10 +11,12 @@ namespace MB_Project.Models
         public string Bio { get; set; }
         public string? RefreeshToken { get; set; }
         public DateTime RefreshTokenExpiryTime { get; set; }
+        public string ValidationEmailToken { get; set; }
         public List<Post>? Posts { get; set; } // one to many
         public List<Review>? Reviews { get; set; }
         public List<Order>? Orders { get; set; }
         
+
     }
 }
 

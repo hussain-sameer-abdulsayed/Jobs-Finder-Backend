@@ -6,8 +6,8 @@ namespace MB_Project.Models.DTOS.PostImageDto
     {
         public int Id { get; set; }
         public string ImageUrl { get; set; }
-        public int? PostId { get; set; }
-        [ForeignKey("PostId")]
+        public int? WorkId { get; set; }
+        [ForeignKey("WorkId")]
         public Post? Post { get; set; }
     }
 }

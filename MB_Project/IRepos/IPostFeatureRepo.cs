@@ -6,7 +6,7 @@ namespace MB_Project.IRepos
     {
         Task<IEnumerable<PostFeature>> GetPostFeatures(int Postid);
         Task<PostFeature> GetPostFeatureById(int id);
-        Task<bool> Create(PostFeature postFeature);
+        Task<bool> Create(List<PostFeature> postFeature);
         Task<bool> Update(int id,PostFeature postFeature);
         Task<bool> Delete(int PostFeatureId);
 

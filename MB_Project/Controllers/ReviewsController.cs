@@ -25,7 +25,11 @@ namespace MB_Project.Controllers
             _reviewRepo = reviewRepo;
             _transactionRepo = transactionRepo;
         }
-        //[Authorize]
+
+
+
+
+        [AllowAnonymous]
         // GET: api/<ReviewController>
         [HttpGet("PostReviews/{PostId}")]
         public async Task<IActionResult> GetAllPostReviews(int PostId)
@@ -78,7 +82,7 @@ namespace MB_Project.Controllers
         }
 
 
-        //[AllowAnonymous]
+        [AllowAnonymous]
         [HttpGet("{ReviewId}")]
         public async Task<IActionResult> GetReview(int ReviewId)
         {
@@ -104,27 +108,27 @@ namespace MB_Project.Controllers
         [HttpPost()]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto reviewDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
                 _transactionRepo.BeginTransaction();
                 var obj = _mapper.Map<Review>(reviewDto);
-                var chk = await _reviewRepo.CreateReview(obj);
-                if(chk == false)
+                var reviewCreated = await _reviewRepo.CreateReview(obj);
+                if(!reviewCreated)
                 {
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("not found");
+                    return NotFound("Review was not posted");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok();
+                return Ok("Review was posted");
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"Review was posted:{ex.Message}");
             }
         }
 
@@ -134,27 +138,27 @@ namespace MB_Project.Controllers
         [HttpPut("{ReviewId}")]
         public async Task<IActionResult> UpdateReview(int ReviewId, [FromBody] UpdateReviewDto reviewDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
                 _transactionRepo.BeginTransaction();
-                var Rev = _mapper.Map<Review>(reviewDto);
-                var chk = await _reviewRepo.UpdateReview(ReviewId, Rev);
-                if(chk == false)
+                var Review = _mapper.Map<Review>(reviewDto);
+                var reviewUpdated = await _reviewRepo.UpdateReview(ReviewId, Review);
+                if(!reviewUpdated)
                 {
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("not found");
+                    return BadRequest("Review was not updated");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok();
+                return Ok("Review was updated");
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"Review was not updated:{ex.Message}");
             }
         }
 
@@ -162,28 +166,28 @@ namespace MB_Project.Controllers
         //[Authorize]
         // DELETE api/<ReviewController>/5
         [HttpDelete("{ReviewId}")]
-        public async Task<IActionResult> Delete(int ReviewId)
+        public async Task<IActionResult> DeleteReview(int reviewId)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
                 _transactionRepo.BeginTransaction();
-                var chk = await _reviewRepo.DeleteReview(ReviewId);
-                if (chk == false)
+                var reviewDeleted = await _reviewRepo.DeleteReview(reviewId);
+                if (!reviewDeleted)
                 {
                     _transactionRepo.RollBackTransaction();
-                    return NotFound("not found");
+                    return BadRequest("Review was not deleted");
                 }
                 _transactionRepo.CommitTransaction();
-                return Ok();
+                return Ok("Review was deleted");
             }
-            catch
+            catch (Exception ex)
             {
                 _transactionRepo.RollBackTransaction();
-                return BadRequest();
+                return BadRequest($"Review was not deleted:{ex.Message}");
             }
         }
     }

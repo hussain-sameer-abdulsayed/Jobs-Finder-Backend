@@ -29,5 +29,6 @@ namespace MB_Project.IRepos
         Task<bool> Update(int id, PostImage postImage);
         Task<bool> Delete(int id);
         void DeleteFile(string uniqueFileName);
+        Task<double> GetPostRating(int postId);
     }
 }

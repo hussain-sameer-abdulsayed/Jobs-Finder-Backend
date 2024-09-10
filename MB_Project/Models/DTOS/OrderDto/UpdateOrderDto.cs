@@ -4,7 +4,7 @@ namespace MB_Project.Models.DTOS.OrderDto
 {
     public class UpdateOrderDto
     {
-        public int? PostId { get; set; }
+        public int? WorkId { get; set; }
         public float TotalPrice { get; set; }
         //public OrderStatus? Status { get; set; } 
 

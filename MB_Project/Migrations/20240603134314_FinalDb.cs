@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MB_Project.Migrations
 {
     /// <inheritdoc />
-    public partial class NewDataBase : Migration
+    public partial class FinalDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -70,6 +70,7 @@ namespace MB_Project.Migrations
                     Bio = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RefreeshToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RefreshTokenExpiryTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ValidationEmailToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -122,7 +123,8 @@ namespace MB_Project.Migrations
                     MainImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BasePrice = table.Column<float>(type: "real", nullable: true),
                     FreelancerId = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    images = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    images = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    StarRating = table.Column<double>(type: "float", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -226,7 +228,7 @@ namespace MB_Project.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: true),
-                    PostId = table.Column<int>(type: "int", nullable: true),
+                    WorkId = table.Column<int>(type: "int", nullable: true),
                     TotalPrice = table.Column<float>(type: "real", nullable: true),
                     OrderStatus = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
@@ -234,8 +236,8 @@ namespace MB_Project.Migrations
                 {
                     table.PrimaryKey("PK_Orders", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Orders_Posts_PostId",
-                        column: x => x.PostId,
+                        name: "FK_Orders_Posts_WorkId",
+                        column: x => x.WorkId,
                         principalTable: "Posts",
                         principalColumn: "Id");
                     table.ForeignKey(
@@ -249,12 +251,13 @@ namespace MB_Project.Migrations
                 name: "PostCategories",
                 columns: table => new
                 {
-                    PostId = table.Column<int>(type: "int", nullable: false),
-                    CategoryId = table.Column<int>(type: "int", nullable: false)
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    PostsId = table.Column<int>(type: "int", nullable: false),
+                    WorkId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PostCategories", x => new { x.CategoryId, x.PostId });
+                    table.PrimaryKey("PK_PostCategories", x => new { x.CategoryId, x.PostsId });
                     table.ForeignKey(
                         name: "FK_PostCategories_Categories_CategoryId",
                         column: x => x.CategoryId,
@@ -262,8 +265,8 @@ namespace MB_Project.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_PostCategories_Posts_PostId",
-                        column: x => x.PostId,
+                        name: "FK_PostCategories_Posts_PostsId",
+                        column: x => x.PostsId,
                         principalTable: "Posts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -275,7 +278,7 @@ namespace MB_Project.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    PostId = table.Column<int>(type: "int", nullable: true),
+                    WorkId = table.Column<int>(type: "int", nullable: true),
                     Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Price = table.Column<float>(type: "real", nullable: false)
                 },
@@ -283,8 +286,8 @@ namespace MB_Project.Migrations
                 {
                     table.PrimaryKey("PK_PostFeatures", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PostFeatures_Posts_PostId",
-                        column: x => x.PostId,
+                        name: "FK_PostFeatures_Posts_WorkId",
+                        column: x => x.WorkId,
                         principalTable: "Posts",
                         principalColumn: "Id");
                 });
@@ -296,14 +299,14 @@ namespace MB_Project.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PostId = table.Column<int>(type: "int", nullable: true)
+                    WorkId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PostsImages", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PostsImages_Posts_PostId",
-                        column: x => x.PostId,
+                        name: "FK_PostsImages_Posts_WorkId",
+                        column: x => x.WorkId,
                         principalTable: "Posts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -317,15 +320,15 @@ namespace MB_Project.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Rating = table.Column<int>(type: "int", nullable: false),
-                    PostId = table.Column<int>(type: "int", nullable: true),
+                    WorkId = table.Column<int>(type: "int", nullable: true),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Reviews", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Reviews_Posts_PostId",
-                        column: x => x.PostId,
+                        name: "FK_Reviews_Posts_WorkId",
+                        column: x => x.WorkId,
                         principalTable: "Posts",
                         principalColumn: "Id");
                     table.ForeignKey(
@@ -375,24 +378,24 @@ namespace MB_Project.Migrations
                 column: "PostFeaturesId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Orders_PostId",
-                table: "Orders",
-                column: "PostId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Orders_UserId",
                 table: "Orders",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PostCategories_PostId",
-                table: "PostCategories",
-                column: "PostId");
+                name: "IX_Orders_WorkId",
+                table: "Orders",
+                column: "WorkId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PostFeatures_PostId",
+                name: "IX_PostCategories_PostsId",
+                table: "PostCategories",
+                column: "PostsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostFeatures_WorkId",
                 table: "PostFeatures",
-                column: "PostId");
+                column: "WorkId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Posts_FreelancerId",
@@ -400,19 +403,19 @@ namespace MB_Project.Migrations
                 column: "FreelancerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PostsImages_PostId",
+                name: "IX_PostsImages_WorkId",
                 table: "PostsImages",
-                column: "PostId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Reviews_PostId",
-                table: "Reviews",
-                column: "PostId");
+                column: "WorkId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Reviews_UserId",
                 table: "Reviews",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reviews_WorkId",
+                table: "Reviews",
+                column: "WorkId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RoleClaims_RoleId",

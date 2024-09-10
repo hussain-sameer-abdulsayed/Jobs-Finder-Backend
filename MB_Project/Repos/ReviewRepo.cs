@@ -52,7 +52,7 @@ namespace MB_Project.Repos
         {
             try
             {
-                var post = await _context.Reviews.Where(x => x.PostId == PostId).ToListAsync();
+                var post = await _context.Reviews.Where(x => x.WorkId == PostId).ToListAsync();
                 if (post.Count() == 0)
                 {
                     return Enumerable.Empty<Review>();
@@ -86,7 +86,7 @@ namespace MB_Project.Repos
         {
             try
             {
-                var post = await _context.Reviews.Where(x => x.UserId == UserId && x.PostId != null).ToListAsync();
+                var post = await _context.Reviews.Where(x => x.UserId == UserId && x.WorkId != null).ToListAsync();
                 if (!post.Any())
                 {
                     return Enumerable.Empty<Review>();
